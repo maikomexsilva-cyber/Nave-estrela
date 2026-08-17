@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constelação: Caçador de Estrelas</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070b20;color:white;font-family:Arial,sans-serif;overflow:hidden}
+#game{position:relative;width:100vw;height:100vh;background:radial-gradient(circle at 50% 20%,#17245c 0,#080c25 48%,#03040e 100%)}
+canvas{display:block;width:100%;height:100%}
+#ui{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;font-weight:bold;font-size:18px;text-shadow:0 2px 5px #000;pointer-events:none}
+#start{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,4,14,.72)}
+.card{width:min(90%,420px);padding:28px;border:1px solid #7386ff;border-radius:24px;background:rgba(10,16,48,.94);text-align:center;box-shadow:0 0 35px #293aa8}
+h1{margin-top:0;font-size:32px}.card p{line-height:1.5;color:#d7ddff}
+button{border:0;border-radius:14px;padding:14px 25px;background:#7182ff;color:#fff;font-size:18px;font-weight:bold;cursor:pointer}
+#hint{position:absolute;bottom:15px;left:0;right:0;text-align:center;color:#9fa9d8;font-size:14px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="c"></canvas>
+<div id="ui"><span>⭐ Pontos: <b id="score">0</b></span><span>❤️ <b id="lives">3</b></span><span>🌌 Nível <b id="level">1</b></span></div>
+<div id="hint">Mova o mouse/toque para pilotar • Pegue estrelas • Fuja dos meteoros</div>
+<div id="start"><div class="card">
+<h1>🌌 Caçador de Estrelas</h1>
+<p>Um jogo original: pilote sua nave pela galáxia, capture estrelas e sobreviva aos meteoros. A cada 10 estrelas, a galáxia fica mais rápida.</p>
+<button id="play">JOGAR</button>
+</div></div>
+</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H,dpr,ship,stars=[],rocks=[],bg=[],score=0,lives=3,level=1,running=false,keys={},last=0,spawn=0;
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);bg=Array.from({length:100},()=>({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+.4,a:Math.random()}))}
+resize();addEventListener('resize',()=>{resize();if(ship){ship.x=Math.max(25,Math.min(W-25,ship.x));ship.y=Math.max(45,Math.min(H-35,ship.y));}});
+function reset(){if(running)return;score=0;lives=3;level=1;stars=[];rocks=[];ship={x:W/2,y:H-90,r:20};running=true;document.getElementById('start').style.display='none';last=performance.now();requestAnimationFrame(loop)}
+function star(){stars.push({x:Math.random()*W,y:-20,r:7+Math.random()*4,v:100+Math.random()*80+level*12,rot:Math.random()*6.28})}
+function rock(){rocks.push({x:Math.random()*W,y:-30,r:12+Math.random()*17,v:130+Math.random()*100+level*18,rot:Math.random()*6.28,spin:(Math.random()-.5)*4})}
+function hit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
+function drawShip(){if(!ship)return;ctx.save();ctx.translate(Math.round(ship.x),Math.round(ship.y));ctx.shadowBlur=18;ctx.shadowColor='#6f83ff';ctx.fillStyle='#9eafff';ctx.beginPath();ctx.moveTo(0,-25);ctx.lineTo(19,20);ctx.lineTo(0,14);ctx.lineTo(-19,20);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#dff6ff';ctx.beginPath();ctx.arc(0,-5,6,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffcc66';ctx.beginPath();ctx.moveTo(-7,17);ctx.lineTo(0,32);ctx.lineTo(7,17);ctx.closePath();ctx.fill();ctx.restore()}
+function loop(t){if(!running)return;let dt=Math.min(.03,(t-last)/1000);last=t;
+ctx.clearRect(0,0,W,H);bg.forEach(p=>{p.y+=35*dt*(1+level*.12);if(p.y>H){p.y=0;p.x=Math.random()*W}ctx.globalAlpha=p.a;ctx.fillStyle='#fff';ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;
+let dx=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0),dy=(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0);
+ship.x=Math.max(25,Math.min(W-25,ship.x+dx*420*dt));ship.y=Math.max(45,Math.min(H-35,ship.y+dy*420*dt));
+spawn-=dt;if(spawn<=0){star();if(Math.random()<.7)rock();spawn=Math.max(.22,.65-level*.035)}
+stars.forEach(o=>{o.y+=o.v*dt;o.rot+=dt*2;ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#ffe66d';ctx.shadowBlur=15;ctx.shadowColor='#fff09a';ctx.beginPath();for(let i=0;i<10;i++){let r=i%2?o.r*.42:o.r;let a=i*Math.PI/5;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.fill();ctx.restore()});
+rocks.forEach(o=>{o.y+=o.v*dt;o.rot+=o.spin*dt;ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#7d8499';ctx.beginPath();for(let i=0;i<8;i++){let a=i*Math.PI/4,r=o.r*(.72+Math.random()*.3);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.fill();ctx.restore()});
+stars=stars.filter(o=>{if(hit(ship,o)){score++;if(score%10===0)level++;document.getElementById('score').textContent=score;document.getElementById('level').textContent=level;return false}return o.y<H+40});
+rocks=rocks.filter(o=>{if(hit(ship,o)){lives--;document.getElementById('lives').textContent=lives;if(lives<=0){gameOver();return false}return false}return o.y<H+50});
+drawShip();requestAnimationFrame(loop)}
+function gameOver(){running=false;document.querySelector('#start .card').innerHTML=`<h1>🌠 Fim da viagem</h1><p>Você capturou <b>${score}</b> estrelas e chegou ao nível <b>${level}</b>.</p><button id="play">JOGAR DE NOVO</button>`;document.getElementById('start').style.display='flex';document.getElementById('play').onclick=reset}
+addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});
+addEventListener('keyup',e=>keys[e.key]=false);
+function pointer(e){let p=e.touches?e.touches[0]:e;ship.x=p.clientX;ship.y=p.clientY}
+addEventListener('mousemove',e=>{if(running)pointer(e)});addEventListener('touchmove',e=>{if(running){pointer(e);e.preventDefault()}},{passive:false});
+document.getElementById('play').onclick=reset;
+</script>
+</body>
+</html>
